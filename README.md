@@ -20,3 +20,4 @@ pip install PyGithub GitPython
 python backup_github.py --token TOKEN --dest DEST
 ```
 where TOKEN is your Github personal access token and DEST the location where you want your repos to be saved.
+Acces to the git repo is done using SSH so you need to have SSH keys setup.
