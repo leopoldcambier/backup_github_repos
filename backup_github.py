@@ -13,6 +13,8 @@ import argparse
 #     Make sure you store your token securely. It gives access to all your private repos.
 #
 # [2] `dest` is the folder where all repos will be cloned and backed up.
+# [3] `user` the user's repo to backup. By definition, backup all repos (see below, from the user but also those
+#     he has access to). When specified, restricts repos to that user
 #
 # A given Github user can access a number of repos like
 # user/repo1
@@ -37,7 +39,7 @@ import argparse
 # ${HOME}/backup/friend1/repo2
 # ${HOME}/backup/friend2/repo1
 # ${HOME}/backup/friend2/repo2
-def backup_github_repos(token, dest):
+def backup_github_repos(token, dest, user=None):
 
     print("Backuping all repos to {}".format(dest))
 
@@ -51,33 +53,41 @@ def backup_github_repos(token, dest):
         url = repo.ssh_url
         name = repo.full_name
         directory = os.path.join(dest, name)
-          
-        # Initialize the git repo
-        repo = git.Repo.init(directory)
     
-        # If origin doesn't exist, create it
-        if not ('origin' in repo.remotes):
-            print("Creating origin remote from {}".format(url))
-            origin = repo.create_remote('origin', url)
+        if(user is None or name.startswith(user)):
+            print("Backuping {} at {}".format(name, directory))
+              
+            try:
+                # Initialize the git repo
+                repo = git.Repo.init(directory)
     
-        # Fetch
-        origin = repo.remotes.origin
-        origin.fetch()
+                # If origin doesn't exist, create it
+                if not ('origin' in repo.remotes):
+                    origin = repo.create_remote('origin', url)
     
-        # Go through all branches, checkout and pull
-        for ref in origin.refs:
-            branch_name = str(ref)[7:] # origin/branch/name
-            print("Pulling branch {}".format(branch_name))
-            head = repo.create_head(branch_name, ref)
-            head.set_tracking_branch(ref)
-            head.checkout()
-            origin.pull()
+                # Fetch
+                origin = repo.remotes.origin
+                origin.fetch()
+    
+                # Go through all branches, checkout and pull
+                for ref in origin.refs:
+                    branch_name = str(ref)[7:] # origin/branch/name
+                    print("Pulling branch {}".format(branch_name))
+                    head = repo.create_head(branch_name, ref)
+                    head.set_tracking_branch(ref)
+                    head.checkout()
+                    origin.pull()
+            except:
+                print("An error occured working on {}, skipping".format(name))
+        else:
+            print("Skipping {}".format(directory))
 
 # Usage: ./backup.py --token $GITHUB_TOKEN --dest ${HOME}/path/to/backup/dir
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Backup Github Git repos.')
     parser.add_argument('--token', type=str, help='A Personal access token with repo scope at least')
     parser.add_argument('--dest', type=str, help='A directory where to store backup the repos')
+    parser.add_argument('--user', type=str, help='If provided, restricts repos to that user')
     args = parser.parse_args()
-    backup_github_repos(args.token, args.dest)
+    backup_github_repos(args.token, args.dest, args.user)
     
